@@ -5,10 +5,13 @@ import numpy as np
 import pickle
 import argparse
 import sys
+import json
 
 from scipy.special import entr
 from random import choice, sample, randint
 from sys import exit
+from os import listdir
+from os.path import isfile, join
 
 
 def get_graph(filename, data_folder):
@@ -36,6 +39,7 @@ def describe_graph(g):
     :return:
     """
     print("Order: {} nodes".format(g.number_of_nodes()))
+    print("Max node id: {}".format(max([n for n in g.nodes()])))
     print("Size: {} edges (interactions)".format(g.number_of_edges()))
     print("Density: {}".format(nx.density(g)))
     ts = nx.get_edge_attributes(g, 'start')
@@ -236,6 +240,79 @@ def print_current_params(args):
         print("\tsources:\t\tnew random samples:\t\t{}".format(args.randm_sample))
     print("---------------------------------")
 
+
+def load_guille_json_to_matrix(data_folder, graph_name, time, max_node_id=1179):
+    """
+
+    :param data_folder:
+    :param graph_name:
+    :param time:
+    :return:
+    """
+
+    def get_graph_name(filename):
+        return filename.split("_")[2]
+
+    def get_graph_time(filename):
+        return filename.split("_")[3]
+
+    def get_source_node(filename):
+        return int(filename.split("_")[8])
+
+    def is_prob(filename):
+        return "PROB" in filename
+
+    files = [f for f in listdir(data_folder) if isfile(join(data_folder, f)) and
+             is_prob(f) and get_graph_name(f) == graph_name and get_graph_time(f) == time]
+
+    nodes = [get_source_node(f) for f in files]
+    n = max_node_id + 1
+    num_of_paths_matrix = np.zeros((n, n), dtype=float)
+    destinations = set()
+    for f in files:
+        with open(join(data_folder, f)) as of:
+            data = json.load(of)
+            source = get_source_node(f)
+            for k, v in data.items():
+                num_of_paths_matrix[source, int(k)] = float(v)
+                destinations.add(int(k))
+
+    # TODO: change representation! we can not store data in a matrix like this if sources nodes are repeated
+    # delete unused rows (non sequential ids + not chosen in subsample)
+    num_of_paths_matrix = num_of_paths_matrix[nodes, :]
+    print(num_of_paths_matrix.shape)
+
+    # delete unused columns (non sequential ids)
+    to_delete = [x for x in range(n) if x not in destinations]
+    num_of_paths_matrix = np.delete(num_of_paths_matrix, to_delete, axis=1)
+
+    print(num_of_paths_matrix.shape)
+    return num_of_paths_matrix
+
+
+def load_pickle_file(data_folder, graph_name, its=1000000, path_len=5, time=0):
+    """
+
+    :param data_folder:
+    :param graph_name:
+    :param its:
+    :param path_len:
+    :param time:
+    :return:
+    """
+
+    filename = join(data_folder, "{}_{}_{}_{}_1.0.pickle".format(graph_name, path_len, its, time))
+    p = pickle.load(open(filename, "rb"))
+    return p["m_aprox"], p["a_aprox"], p["e_aprox"]
+
+
+def compare_results():
+    m_aprox, _, _ = load_pickle_file("pickle_files", "Seattle32", time=0)
+    m = load_guille_json_to_matrix("paths_for_anonymity_degree_N6", "N6", "zero")
+
+    print m.shape
+    print m_aprox.shape
+    exit()
 
 if __name__ == "__main__":
 

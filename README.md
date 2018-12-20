@@ -4,11 +4,9 @@
     
 # Running:
 
-    usage: anonymity_set_netwx.py [-h] [-g GRAPH_NAME] [-f DATA_FOLDER]
-                              [-p PICKLE_FOLDER] [-l PATH_LEN] [-c COST]
-                              [-d MAX_DURATION] [-e] [-i ITS]
-                              [-r RANDM_SAMPLE] [-s SELECTED_SAMPLES]
-    
+    usage: m_paper_exp.py [-h] [-f DATA_FOLDER] [-p PICKLE_FOLDER] [-l PATH_LEN]
+                      [-c COST] [-i ITS] [-g GRAPH_NAME] [-t STARTING_TIME]
+
     
 ### Paper's experiments:
 
@@ -17,19 +15,11 @@ If data is in the `data` folder, results are stored in `pickle_files` folder, `c
  
 At zero hour:
 
-    time python anonymity_set_netwx.py -i 1000000 -s 0 -d 65985 -g "Seattle32.txt"
-    time python anonymity_set_netwx.py -i 1000000 -s 0 -d 68291 -g "Seattle16.txt"
-    time python anonymity_set_netwx.py -i 1000000 -s 0 -d 69432 -g "Seattle08.txt"
-    time python anonymity_set_netwx.py -i 1000000 -s 0 -d 70907 -g "Seattle04.txt"
-    time python anonymity_set_netwx.py -i 1000000 -s 0 -d 70755 -g "Seattle02.txt"
-    time python anonymity_set_netwx.py -i 1000000 -s 0 -d 71436 -g "Seattle01.txt"
+    time python m_paper_exp.py -g Seattle32.txt -t 0
+
     
 At rush hour:
 
-    time python anonymity_set_netwx.py -i 1000000 -s 1 -d 32070 -g "Seattle32.txt"
-    time python anonymity_set_netwx.py -i 1000000 -s 1 -d 40915 -g "Seattle16.txt"
-    time python anonymity_set_netwx.py -i 1000000 -s 1 -d 42473 -g "Seattle08.txt"
-    time python anonymity_set_netwx.py -i 1000000 -s 1 -d 45310 -g "Seattle04.txt"
-    time python anonymity_set_netwx.py -i 1000000 -s 1 -d 44421 -g "Seattle02.txt"
-    time python anonymity_set_netwx.py -i 1000000 -s 1 -d 46442 -g "Seattle01.txt"
+    time python m_paper_exp.py -g Seattle32.txt -t 1
+
 

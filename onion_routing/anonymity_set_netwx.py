@@ -155,29 +155,31 @@ def compute_m_paths_of_len(g, sampl, start_times, path_len=5, cost=1, its=100, m
     :return: matrix, matrix[i][j] stores de number of times a path starting in i ends up in j.
     """
 
-    # TODO: use sparse matrices or just store the data we need
-    # ids may not be sequential, so just create a bigger matrix (we delete the unused rows afterwards)
-    n = max(g.nodes()) + 1  # g.number_of_nodes()
-    num_of_paths_matrix = np.zeros((n, n), dtype=float)
+    num_of_paths_dict = {}
 
     # for each node in source, generate random paths and count the number of times they end up in each
     # dest. node
     for source, start_time in zip(sampl, start_times):
         print "Processing source node: {} (starting at time {})".format(source, start_time)
+        num_of_paths_dict[source] = {dest: 0 for dest in g.nodes()}
         for _ in range(its):
             d = random_path_v1(g, source, path_len, start_time, cost, max_duration)
             if d is not None:
-                num_of_paths_matrix[source, d] += 1
+                num_of_paths_dict[source][d] += 1
 
-    # delete unused rows (non sequential ids + not chosen in subsample)
-    to_delete = [x for x in range(n) if x not in sampl]
-    num_of_paths_matrix = np.delete(num_of_paths_matrix, to_delete, axis=0)
+    return num_of_paths_dict
 
-    # delete unused columns (non sequential ids)
-    to_delete = [x for x in range(n) if x not in g.nodes()]
-    num_of_paths_matrix = np.delete(num_of_paths_matrix, to_delete, axis=1)
 
-    return num_of_paths_matrix
+def dict_to_np_matrix(d):
+
+    row_order = sorted(d.keys())
+    col_order = sorted(d[row_order[0]].keys())
+    num_of_paths_matrix = np.zeros((len(row_order), len(col_order)), dtype=float)
+    for i, r in enumerate(row_order):
+        for j, c in enumerate(col_order):
+            num_of_paths_matrix[i, j] = d[r][c]
+
+    return num_of_paths_matrix, row_order, col_order
 
 
 def random_path_v1(g, source, path_len, start_time=0, cost=1, max_duration=sys.maxint):
@@ -382,6 +384,9 @@ if __name__ == "__main__":
         m_aprox = compute_m_paths_of_len(g, s, st, path_len=args.path_len, cost=args.cost,
                                          its=args.its, max_duration=args.max_duration)
 
+    print m_aprox
+    m_aprox, row_indx, col_indx = dict_to_np_matrix(m_aprox)
+    print m_aprox
     e_aprox = compute_entropy(m_aprox)
     a_aprox = compute_anon_degree(m_aprox)
     as_aprox = compute_anon_set_size(m_aprox)

@@ -1,9 +1,9 @@
 import simple_paths_onion as spo
+from constants import SEP
 
 import networkx as nx
 import numpy as np
 import pickle
-import argparse
 import sys
 import json
 
@@ -88,6 +88,9 @@ def compute_anon_degree(m):
 
 def compute_all_paths_of_len(g, sampl, start_times, path_len=5, cost=1):
 
+    raise DeprecationWarning
+    exit()
+
     # TODO: use sparse matrices or just store the data we need
     # ids may not be sequential, so just create a bigger matrix (we delete the unused rows afterwards)
     n = max(g.nodes()) + 1
@@ -128,7 +131,7 @@ def get_random_timestamps(s, when="zero"):
     :param when: "zero" or "rush" (interval of valid values)
     :return: list with randomly selected timestamps
     """
-    interval = [0, 10000] if when == "zero" else [25000, 50000]
+    interval = [0, 10000] if when == "zero" else [25000, 35000]
     return [randint(*interval) for _ in s]
 
 
@@ -161,11 +164,11 @@ def compute_m_paths_of_len(g, sampl, start_times, path_len=5, cost=1, its=100, m
     # dest. node
     for source, start_time in zip(sampl, start_times):
         print "Processing source node: {} (starting at time {})".format(source, start_time)
-        num_of_paths_dict[source] = {dest: 0 for dest in g.nodes()}
+        num_of_paths_dict[(source, start_time)] = {dest: 0 for dest in g.nodes()}
         for _ in range(its):
             d = random_path_v1(g, source, path_len, start_time, cost, max_duration)
             if d is not None:
-                num_of_paths_dict[source][d] += 1
+                num_of_paths_dict[(source, start_time)][d] += 1
 
     return num_of_paths_dict
 
@@ -226,21 +229,15 @@ def random_path_v1(g, source, path_len, start_time=0, cost=1, max_duration=sys.m
 
 
 def print_current_params(args):
-    print("---------------------------------")
+
+    print(SEP)
     print("Parameters:")
     print("\tgraph:\t\t\t{}".format(args.graph_name))
     print("\tpath_len:\t\t{}".format(args.path_len))
     print("\tcost:\t\t\t{}".format(args.cost))
-    print("\tmax_duration:\t{}".format(args.max_duration))
-    if args.exact:
-        print("\thow:\t\t\tcompute all!")
-    else:
-        print("\thow:\t\t\titerative\t\t\t\t{}".format(args.its))
-    if args.selected_samples != -1:
-        print("\tsources:\t\tpreselected samples\t{}".format(args.selected_samples))
-    else:
-        print("\tsources:\t\tnew random samples:\t\t{}".format(args.randm_sample))
-    print("---------------------------------")
+    print("\titerative\t\t{}".format(args.its))
+    print("\ttime\t\t\t{}".format("rush" if args.starting_time else "zero"))
+    print(SEP)
 
 
 def load_guille_json_to_matrix(data_folder, graph_name, time, max_node_id=1179):
@@ -316,97 +313,4 @@ def compare_results():
     print m_aprox.shape
     exit()
 
-if __name__ == "__main__":
 
-    default_its, default_sampl = 1000, 1.0
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-g', dest='graph_name', default="Seattle32.txt")
-    parser.add_argument('-f', dest='data_folder', default="data")
-    parser.add_argument('-p', dest='pickle_folder', default="pickle_files")
-    parser.add_argument('-l', dest='path_len', default=5, type=int)
-    parser.add_argument('-c', dest='cost', default=1, type=int)
-    parser.add_argument('-d', dest='max_duration', default=sys.maxint, type=int)
-
-    parser.add_argument('-e', dest='exact', action='store_true')
-    parser.add_argument('-i', dest='its', default=default_its, type=int)
-
-    parser.add_argument('-r', dest='randm_sample', default=default_sampl, type=float)
-    parser.add_argument('-s', dest='selected_samples', default=-1, type=int)
-
-    try:
-        args = parser.parse_args()
-        print_current_params(args)
-    except:
-        parser.print_help()
-        exit(0)
-
-    g = get_graph(args.graph_name, args.data_folder)
-    # describe_graph(g)
-
-    if args.selected_samples == -1:
-        # new random sample
-        s = get_subsample_of_nodes(g, args.randm_sample)
-        st = get_random_timestamps(s, when="zero")
-    elif args.selected_samples == 0:
-        # zero hours
-        s = [229, 789, 257, 974, 459, 186, 353, 202, 711, 1027, 385, 782, 735, 1002, 689, 716, 899, 562, 329, 317, 932,
-             1015, 493, 877, 923, 667, 780, 189, 1097, 929, 798, 214, 40, 1104, 7, 146, 567, 352, 674, 597, 989, 279,
-             992, 283, 1136, 981, 413, 916, 1067, 1019, 888, 208, 1025, 488, 797, 147, 635, 207, 719, 1044, 109, 495,
-             52, 110, 206, 1178, 277, 640, 256, 40, 87, 155, 480, 706, 500, 878, 406, 808, 621, 1015, 1134, 563, 170,
-             1149, 1035, 237, 1136, 910, 145, 83, 768, 552, 306, 1153, 76, 964, 68, 1030, 328, 315]
-        st = [1847, 1318, 456, 8511, 4728, 1445, 495, 6258, 8287, 3015, 7387, 5356, 1485, 3090, 2433, 4324, 1957, 2199,
-              2888, 9355, 2605, 9828, 4783, 4376, 5447, 7463, 8623, 3133, 3033, 2002, 2546, 6503, 2205, 1351, 3687,
-              5285, 3098, 8582, 9267, 5894, 3981, 1270, 9819, 7175, 1387, 2818, 1224, 1532, 540, 8076, 8844, 9183, 1602,
-              3231, 7822, 4208, 1166, 440, 4657, 3039, 9700, 783, 8247, 4162, 2048, 8666, 6629, 7577, 5399, 292, 9103,
-              3756, 6157, 2181, 417, 8996, 2520, 7029, 2420, 1464, 1181, 600, 1533, 6685, 1719, 8662, 9284, 6443, 574,
-              6336, 1544, 1237, 1606, 7420, 6117, 8682, 129, 855, 1053, 9867]
-    elif args.selected_samples == 1:
-        # rush hous
-        s = [315, 317, 1045, 388, 808, 636, 996, 896, 954, 871, 587, 700, 788, 731, 857, 528, 629, 910, 61, 677, 963,
-             750, 573, 365, 618, 403, 315, 330, 942, 814, 176, 1149, 925, 45, 378, 839, 11, 134, 261, 390, 931, 1143,
-             973, 802, 670, 314, 1175, 840, 995, 920, 647, 417, 94, 1051, 584, 1104, 252, 790, 692, 1025, 644, 461, 113,
-             478, 777, 98, 576, 457, 910, 672, 237, 1091, 43, 1114, 1059, 981, 1052, 803, 911, 979, 325, 108, 50, 170,
-             617, 730, 218, 886, 653, 790, 496, 851, 783, 121, 890, 30, 332, 811, 71, 1027]
-        st = [994, 961, 470, 325, 554, 1064, 310, 86, 902, 174, 629, 659, 867, 1029, 361, 640, 349, 1145, 1154, 438,
-              665, 1125, 649, 282, 16, 88, 843, 363, 403, 756, 669, 960, 498, 724, 355, 973, 284, 40, 179, 849, 185,
-              869, 1100, 1079, 452, 37, 839, 237, 596, 148, 633, 928, 688, 304, 70, 30, 23, 116, 299, 716, 1098, 740,
-              249, 609, 956, 438, 957, 272, 1082, 169, 347, 428, 226, 324, 234, 920, 771, 1110, 967, 1045, 721, 135, 14,
-              87, 1045, 981, 1106, 1031, 759, 470, 1131, 674, 95, 558, 366, 755, 1153, 955, 910, 550]
-
-    if args.exact:
-        # Exhaustively compute all paths
-        if args.its != default_its:
-            print("Warning: exact values are computed, so sampl and its parameters will not be used!")
-        m_aprox = compute_all_paths_of_len(g, s, st, path_len=args.path_len, cost=args.cost)
-        # TODO: implement max duration in the exact version
-    else:
-        # Compute dest. nodes using random paths
-        m_aprox = compute_m_paths_of_len(g, s, st, path_len=args.path_len, cost=args.cost,
-                                         its=args.its, max_duration=args.max_duration)
-
-    print m_aprox
-    m_aprox, row_indx, col_indx = dict_to_np_matrix(m_aprox)
-    print m_aprox
-    e_aprox = compute_entropy(m_aprox)
-    a_aprox = compute_anon_degree(m_aprox)
-    as_aprox = compute_anon_set_size(m_aprox)
-
-    print("-----------")
-    # print "Path matrix:\n{}".format(m_aprox)
-    # print "Entropy:\n{}".format(e_aprox)
-    print("Mean entropy: {}".format(np.mean(e_aprox)))
-    # print "Anon. degree:\n{}".format(a_aprox)
-    print("Mean anon. degree: {}".format(np.mean(a_aprox)))
-    # print "Anon. set size:\n{}".format(as_aprox)
-    print("Mean anon. set size: {}".format(np.mean(as_aprox)))
-
-
-    if args.exact:
-        pickle_name = "{}/{}_{}_{}_{}_exact.pickle".format(
-            args.pickle_folder, args.graph_name[:-4], args.path_len, args.selected_samples, args.randm_sample)
-    else:
-        pickle_name = "{}/{}_{}_{}_{}_{}.pickle".format(
-            args.pickle_folder, args.graph_name[:-4], args.path_len, args.its, args.selected_samples, args.randm_sample)
-
-    pickle.dump({"m_aprox": m_aprox, "e_aprox": e_aprox, "a_aprox": a_aprox},
-                open(pickle_name, "wb"))

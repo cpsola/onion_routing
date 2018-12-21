@@ -6,6 +6,7 @@ import numpy as np
 import pickle
 import sys
 import json
+import pandas as pd
 
 from scipy.special import entr
 from random import choice, sample, randint
@@ -174,13 +175,52 @@ def compute_m_paths_of_len(g, sampl, start_times, path_len=5, cost=1, its=100, m
 
 
 def dict_to_np_matrix(d):
+    """
+    Creates a numpy matrix from results stored in a dictionary. Dictionary should be:
+        {(source, starting_time): {dest_0: num_of_paths, dest_1: num_of_paths, ...}
+
+    The function assumes all source nodes have entries to all destinations (if there are no paths from
+        a source to a destination, there is an entry with values 0).
+
+    :param d: dictionary
+    :return: numpy matrix, row indices, column indices
+    """
 
     row_order = sorted(d.keys())
     col_order = sorted(d[row_order[0]].keys())
     num_of_paths_matrix = np.zeros((len(row_order), len(col_order)), dtype=float)
     for i, r in enumerate(row_order):
+        print i, r
         for j, c in enumerate(col_order):
+            print j, c
             num_of_paths_matrix[i, j] = d[r][c]
+
+    return num_of_paths_matrix, row_order, col_order
+
+
+def guille_dict_to_np_matrix(d, g):
+    """
+    Creates a numpy matrix from results stored in a dictionary. Dictionary should be:
+        {(source, starting_time): {dest_0: num_of_paths, dest_1: num_of_paths, ...}
+
+    The function assumes source nodes do NOT necessarly have entries to all destinations
+        (if there are no paths from a source to a destination, the dictionary may not have that key).
+        So it uses g.nodes() as columns of the matrix).
+
+    :param d: dictionary
+    :param g: networkx graph
+    :return: numpy matrix, row indices, column indices
+    """
+
+    row_order = sorted(d.keys())
+    col_order = sorted(g.nodes())
+    num_of_paths_matrix = np.zeros((len(row_order), len(col_order)), dtype=float)
+    for i, r in enumerate(row_order):
+        for j, c in enumerate(col_order):
+            if c in d[r].keys():
+                num_of_paths_matrix[i, j] = d[r][c]
+            else:
+                num_of_paths_matrix[i, j] = 0
 
     return num_of_paths_matrix, row_order, col_order
 
@@ -240,7 +280,7 @@ def print_current_params(args):
     print(SEP)
 
 
-def load_guille_json_to_matrix(data_folder, graph_name, time, max_node_id=1179):
+def load_guille_probs_to_matrix(data_folder, graph_name, time, max_node_id=1179):
     """
 
     :param data_folder:
@@ -273,44 +313,44 @@ def load_guille_json_to_matrix(data_folder, graph_name, time, max_node_id=1179):
             data = json.load(of)
             source = get_source_node(f)
             for k, v in data.items():
-                num_of_paths_matrix[source, int(k)] = float(v)
-                destinations.add(int(k))
-
-    # TODO: change representation! we can not store data in a matrix like this if sources nodes are repeated
-    # delete unused rows (non sequential ids + not chosen in subsample)
-    num_of_paths_matrix = num_of_paths_matrix[nodes, :]
-    print(num_of_paths_matrix.shape)
-
-    # delete unused columns (non sequential ids)
-    to_delete = [x for x in range(n) if x not in destinations]
-    num_of_paths_matrix = np.delete(num_of_paths_matrix, to_delete, axis=1)
-
-    print(num_of_paths_matrix.shape)
-    return num_of_paths_matrix
+                pass
+                # TODO: finish this
 
 
-def load_pickle_file(data_folder, graph_name, its=1000000, path_len=5, time=0):
+def load_guille_csv(data_folder, filename):
+    """
+    Loads a result csv from guille's experiments.
+
+    :param data_folder: string, data folder
+    :param filename: string, filename
+    :return: dictionary, paths in our format.
     """
 
-    :param data_folder:
-    :param graph_name:
-    :param its:
-    :param path_len:
-    :param time:
-    :return:
+    data = pd.read_csv(join(data_folder, filename))
+
+    print(data.describe())
+
+    d = {}
+    for s, st, p in zip(data["source"], data["startTime"], data["pathsPerNode"]):
+        d[(s, st)] = {eval(k)[0]: v for k, v in eval(p).items() if eval(k)[1] == 5}
+
+    return d
+
+
+def load_pickle_file(data_folder, graph_name, str_starting_time, path_len=5, its=1000000, cost=1):
+    """
+    Loads a pickle file, as stored by m_paper_exp.py
+
+    :param data_folder: string, folder where the pickle file is found
+    :param graph_name: string, graph name
+    :param str_starting_time: string, starting time ("zero" or "rush")
+    :param path_len: int, path length
+    :param its: int, number of paths from each source node
+    :param cost: int, cost of transversing an edge
+    :return: tuple
     """
 
-    filename = join(data_folder, "{}_{}_{}_{}_1.0.pickle".format(graph_name, path_len, its, time))
+    filename = join(data_folder, "{}_{}_{}_{}_{}.pickle".format(graph_name, str_starting_time, path_len, its, cost))
     p = pickle.load(open(filename, "rb"))
-    return p["m_aprox"], p["a_aprox"], p["e_aprox"]
-
-
-def compare_results():
-    m_aprox, _, _ = load_pickle_file("pickle_files", "Seattle32", time=0)
-    m = load_guille_json_to_matrix("paths_for_anonymity_degree_N6", "N6", "zero")
-
-    print m.shape
-    print m_aprox.shape
-    exit()
-
+    return p["d_aprox"], p["m_aprox"], p["a_aprox"], p["e_aprox"]
 

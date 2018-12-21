@@ -8,7 +8,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', dest='data_folder', default="data")
-    parser.add_argument('-p', dest='pickle_folder', default="pickle_files")
+    parser.add_argument('-p', dest='pickle_folder', default="pickle_files_new")
     parser.add_argument('-l', dest='path_len', default=5, type=int)
     parser.add_argument('-c', dest='cost', default=1, type=int)
     parser.add_argument('-i', dest='its', default=1000000, type=int)

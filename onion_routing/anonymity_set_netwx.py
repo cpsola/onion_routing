@@ -17,7 +17,7 @@ from os.path import isfile, join
 
 def get_graph(filename, data_folder):
     """
-    Loads an edge file into a network directed multigraph.
+    Loads an edge file into a networkx multigraph.
 
     :param filename: name of the graph file
     :param data_folder: folder where the graph file is found
@@ -136,7 +136,7 @@ def get_random_timestamps(s, when="zero"):
     return [randint(*interval) for _ in s]
 
 
-def compute_m_paths_of_len(g, sampl, start_times, path_len=5, cost=1, its=100, max_duration=sys.maxint):
+def compute_m_paths_of_len_forw(g, sampl, start_times, path_len=5, cost=1, its=100, max_duration=sys.maxint):
     """
     Computes the number of paths of length `path_len` that start at each node (row) and end at each node (column).
 
@@ -167,9 +167,47 @@ def compute_m_paths_of_len(g, sampl, start_times, path_len=5, cost=1, its=100, m
         print "Processing source node: {} (starting at time {})".format(source, start_time)
         num_of_paths_dict[(source, start_time)] = {dest: 0 for dest in g.nodes()}
         for _ in range(its):
-            d = random_path_v1(g, source, path_len, start_time, cost, max_duration)
+            d = random_path_forward(g, source, path_len, start_time, cost, max_duration)
             if d is not None:
                 num_of_paths_dict[(source, start_time)][d] += 1
+
+    return num_of_paths_dict
+
+
+def compute_m_paths_of_len_back(g, sampl, end_times, path_len=5, cost=1, its=100, max_duration=sys.maxint):
+    """
+    Computes the number of paths of length `path_len` that start at each node (row) and end at each node (column).
+
+    For each source node, `its` number of paths are randomly chosen, and the count to each destination
+        node is stored in the resulting matrix. In the resulting matrix, matrix[i][j] stores de number
+        of times a path starting in i ends up in j.
+
+    If sampl=1, all nodes are used as source nodes in the path search. Otherwise, `sampl` indicates the fraction
+        of nodes to use as starting nodes.
+
+    The sum of each row should be equal to `its`, but may be less if invalid paths have been found.
+
+    :param g: networkx graph (directed multigraph with edges having attributes "start" and "duration")
+    :param sampl: list, subsample of nodes of the graph that will be used as starting nodes
+    :param start_times: list, starting times for each source node
+    :param path_len: int, length of the path
+    :param cost: int, cost of transversing an edge
+    :param its: int, number of iterations to try
+    :param max_duration: int, max duration of the path
+    :return: matrix, matrix[i][j] stores de number of times a path starting in i ends up in j.
+    """
+
+    num_of_paths_dict = {}
+
+    # for each node in source, generate random paths and count the number of times they end up in each
+    # dest. node
+    for dest, end_time in zip(sampl, end_times):
+        print "Processing dest node: {} (ending at time {})".format(dest, end_time)
+        num_of_paths_dict[(dest, end_time)] = {source: 0 for source in g.nodes()}
+        for _ in range(its):
+            d = random_path_backwards(g, dest, path_len, end_time, cost, max_duration)
+            if d is not None:
+                num_of_paths_dict[(dest, end_time)][d] += 1
 
     return num_of_paths_dict
 
@@ -190,9 +228,7 @@ def dict_to_np_matrix(d):
     col_order = sorted(d[row_order[0]].keys())
     num_of_paths_matrix = np.zeros((len(row_order), len(col_order)), dtype=float)
     for i, r in enumerate(row_order):
-        print i, r
         for j, c in enumerate(col_order):
-            print j, c
             num_of_paths_matrix[i, j] = d[r][c]
 
     return num_of_paths_matrix, row_order, col_order
@@ -225,7 +261,7 @@ def guille_dict_to_np_matrix(d, g):
     return num_of_paths_matrix, row_order, col_order
 
 
-def random_path_v1(g, source, path_len, start_time=0, cost=1, max_duration=sys.maxint):
+def random_path_forward(g, source, path_len, start_time=0, cost=1, max_duration=sys.maxint):
     """
     Selects a random path (i.e. without repeating nodes) of length `path_len` starting at
         node `source`.
@@ -268,6 +304,49 @@ def random_path_v1(g, source, path_len, start_time=0, cost=1, max_duration=sys.m
     return path[-1]
 
 
+def random_path_backwards(g, dest, path_len, end_time, cost=1, max_duration=sys.maxint):
+    """
+    Selects a random path (i.e. without repeating nodes) of length `path_len` ending at
+        node `dest`.
+
+    :param g: networkx graph (directed multigraph with edges having attributes "start" and "duration")
+    :param dest: int, node
+    :param path_len: int, path length
+    :param end_time: int, ending time of the path
+    :param cost: int, cost of transversing an edge
+    :return: int, destination node or None (if the random path turned to be invalid)
+    """
+
+    # TODO: maybe we can do a v2 that tries to generate another path if the current path is not valid
+    # (although we have to take into account that such path may not exist)
+
+    current_time = end_time
+    path = [dest]
+    for _ in range(path_len):
+        e = list(g.edges(path[-1], data=True))
+        if len(e):
+            n = choice(e)
+            if n[1] in path:
+                #  print "Node already visited"
+                return None
+            if n[2]["start"] <= current_time - cost:
+                current_time = min(current_time - cost, n[2]["start"] + n[2]["duration"] - cost)
+                if end_time - current_time  < max_duration:
+                    path.append(n[1])
+                else:
+                    # print "Too long path"
+                    return None
+            else:
+                # print "Invalid time path"
+                return None
+        else:
+            # print "No neighbors"
+            return None
+
+    # print path
+    return path[-1]
+
+
 def print_current_params(args):
 
     print(SEP)
@@ -276,7 +355,8 @@ def print_current_params(args):
     print("\tpath_len:\t\t{}".format(args.path_len))
     print("\tcost:\t\t\t{}".format(args.cost))
     print("\titerative\t\t{}".format(args.its))
-    print("\ttime\t\t\t{}".format("rush" if args.starting_time else "zero"))
+    print("\ttime\t\t\t{}".format("rush" if args.scenario_time else "zero"))
+    print("\tdirection\t\t{}".format("backward" if args.reverse else "forward"))
     print(SEP)
 
 

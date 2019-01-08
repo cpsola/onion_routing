@@ -35,7 +35,7 @@ if __name__ == "__main__":
     i = 0
     while True:
         i += 1
-        d = random_path_v1(g, 780, 5, 8623, 1, 65985)
+        d = random_path_forward(g, 780, 5, 8623, 1, 65985)
         print i
         if d == 3:
             break
